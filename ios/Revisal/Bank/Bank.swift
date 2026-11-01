@@ -2,7 +2,8 @@ import Foundation
 
 /// The question banks of التحصيلي and القدرات, bundled in the app as bank/<track>.json (docs/BANK.md), and
 /// how a review draws from them: every question once before any comes again, and each review spread over as
-/// many skills as it can. Foundation only, so it is also compiled into RevisalCheck (`--bank-selftest`).
+/// many skills as it can. Bank questions carry no explanation (owner, 2026-11-01): the question, its four
+/// options and the right one. Foundation only, so it is also compiled into RevisalCheck (`--bank-selftest`).
 
 struct BankSection: Codable, Hashable, Identifiable {
     var id: String
@@ -46,8 +47,7 @@ enum Bank {
         let questions: [Stored]
     }
 
-    /// Reads and checks a bank: known sections, unique ids, four different options, answer 0-3, an
-    /// explanation. A faulty question is an error naming its id, so a broken bank never ships.
+    /// Reads and checks a bank: known sections, unique ids, four different options, answer 0-3. A faulty question is an error naming its id, so a broken bank never ships.
     static func load(_ data: Data) throws -> BankFile {
         let raw: Raw
         do {
@@ -69,9 +69,6 @@ enum Bank {
             guard (0...3).contains(q.answer) else { throw BankError(message: "\(q.id): رقم الإجابة خارج 0-3") }
             guard !q.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || q.image != nil else {
                 throw BankError(message: "\(q.id): سؤال بلا نص ولا صورة")
-            }
-            guard !q.explanation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw BankError(message: "\(q.id): بلا شرح")
             }
             file.questions.append(q)
             file.section[q.id] = s.section

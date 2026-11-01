@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// التحصيلي or القدرات: questions from the bundled bank, every question once before any comes again, each
-/// with the reason its answer is right. No AI and no internet.
+/// التحصيلي or القدرات: questions from the bundled bank, every question once before any comes again, with the
+/// right answer shown after each choice (no explanation, owner 2026-11-01). No AI and no internet.
 struct BankView: View {
     let track: Track
     @EnvironmentObject private var store: Store
@@ -37,7 +37,7 @@ struct BankView: View {
                         .buttonStyle(.borderedProminent)
                         if let error { Text(error).foregroundColor(.red) }
                     } footer: {
-                        Text("تأتي الأسئلة من بنك \(track.title) بلا تكرار حتى تمر عليها كلها، ثم تبدأ دورة جديدة. ومع كل سؤال سبب اختيار الإجابة الصحيحة.")
+                        Text("تأتي الأسئلة من بنك \(track.title) بلا تكرار حتى تمر عليها كلها، ثم تبدأ دورة جديدة. وبعد كل اختيار تظهر الإجابة الصحيحة.")
                     }
 
                     Section("تقدّمك في البنك") {
@@ -50,7 +50,7 @@ struct BankView: View {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("بنك أسئلة \(track.title) يُجهَّز", systemImage: "shippingbox").font(.headline)
-                            Text("تصل أسئلته مع شرح كل إجابة في تحديث قادم للتطبيق، وتعمل بلا إنترنت ولا مفتاح.")
+                            Text("تصل أسئلته في تحديث قادم للتطبيق، وتعمل بلا إنترنت ولا مفتاح.")
                                 .font(.callout).foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)

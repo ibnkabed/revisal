@@ -83,7 +83,7 @@ struct RunView: View {
 }
 
 /// One question: the skill it targets, the stem, four options. After a choice: right or wrong, and the
-/// explanation when the settings ask for it.
+/// explanation (curriculum questions only) when the settings ask for it.
 struct QuestionPage: View {
     let set: ReviewSet
     @Binding var index: Int
@@ -209,7 +209,9 @@ struct Feedback: View {
                   systemImage: right ? "checkmark.seal.fill" : "lightbulb.fill")
                 .font(.headline)
                 .foregroundColor(right ? .green : .orange)
-            Text(explanation).fixedSize(horizontal: false, vertical: true)
+            if !explanation.isEmpty {
+                Text(explanation).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -314,8 +316,10 @@ struct AnswerRow: View {
             }
             Text("الصحيحة: \(optionLetters[question.answer])) \(question.options[question.answer])")
                 .foregroundColor(.green).font(.callout)
-            Text(question.explanation).font(.callout).foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if !question.explanation.isEmpty {
+                Text(question.explanation).font(.callout).foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(.vertical, 4)
     }

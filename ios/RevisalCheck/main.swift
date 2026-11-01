@@ -106,7 +106,7 @@ func bankSelftest() {
     let dup = sampleBank.replacingOccurrences(of: "\"id\":\"q2\"", with: "\"id\":\"q1\"")
     check((try? Bank.load(Data(dup.utf8))) == nil, "a repeated id is refused")
     let noWhy = sampleBank.replacingOccurrences(of: "\"explanation\":\"مكان العمل.\"", with: "\"explanation\":\"\"")
-    check((try? Bank.load(Data(noWhy.utf8))) == nil, "a question without an explanation is refused")
+    check((try? Bank.load(Data(noWhy.utf8))) != nil, "a bank question needs no explanation")
     let badSection = sampleBank.replacingOccurrences(of: "\"section\":\"quant\",\"skill\":\"الهندسة\"", with: "\"section\":\"x\",\"skill\":\"الهندسة\"")
     check((try? Bank.load(Data(badSection.utf8))) == nil, "an unknown section is refused")
 
