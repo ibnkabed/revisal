@@ -25,6 +25,7 @@ import json
 import re
 import sys
 import threading
+import unicodedata
 import time
 import urllib.error
 import urllib.request
@@ -77,8 +78,13 @@ def excluded() -> set[str]:
     path = Path(__file__).with_name("bank-exclude.txt")
     if not path.exists():
         return set()
-    return {line.split("  #")[0].strip() for line in path.read_text(encoding="utf-8").splitlines()
+    return {nfc(line.split("  #")[0].strip()) for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip() and not line.startswith("#")}
+
+
+def nfc(s: str) -> str:
+    """File names on disk may carry decomposed Arabic letters (أ as ا + hamza): compare them composed."""
+    return unicodedata.normalize("NFC", s)
 
 
 ONLY: str | None = None   # --only القدرات: one source folder
@@ -87,7 +93,7 @@ ONLY: str | None = None   # --only القدرات: one source folder
 def pdfs() -> list[Path]:
     skip = excluded()
     base = SOURCES / ONLY if ONLY else SOURCES
-    return sorted(p for p in base.rglob("*") if p.suffix.lower() == ".pdf" and p.name not in skip)
+    return sorted(p for p in base.rglob("*") if p.suffix.lower() == ".pdf" and nfc(p.name) not in skip)
 
 
 def file_id(path: Path) -> str:
@@ -358,16 +364,42 @@ def tiles(folder: Path, count: int) -> None:
     out(f"صور جديدة: {made}، آخرها t{n:04}")
 
 
+def redraw(folder: Path, names: list[str]) -> None:
+    """Draws listed tiles again from the manifest (an image deleted before it was read)."""
+    from PIL import Image, ImageDraw
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    by_id = {file_id(p): p for p in SOURCES.rglob("*.pdf")}
+    for name in names:
+        canvas, x, y, row_h = Image.new("RGB", (TILE_W * 2, TILE_MAX_H), "white"), 0, 0, 0
+        for k, (fid, page, rel) in enumerate(manifest["tiles"][name], 1):
+            pg = pymupdf.open(by_id[fid])[page - 1]
+            cell = TILE_W * 2 // 3
+            pix = pg.get_pixmap(dpi=max(40, int(72 * cell / pg.rect.width)))
+            img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+            img = img.resize((cell, max(1, int(img.height * cell / img.width))))
+            if x + img.width > TILE_W * 2:
+                x, y, row_h = 0, y + row_h, 0
+            canvas.paste(img, (x, y))
+            draw = ImageDraw.Draw(canvas)
+            draw.rectangle([x, y, x + img.width - 1, y + img.height - 1], outline="red", width=3)
+            draw.rectangle([x, y, x + 46, y + 40], fill="red")
+            draw.text((x + 10, y + 6), str(k), fill="white", font_size=30)
+            x, row_h = x + img.width, max(row_h, img.height)
+        canvas.crop((0, 0, TILE_W * 2, y + row_h)).save(folder / f"{name}.jpg", quality=85)
+    out(f"أُعيد رسم {len(names)}")
+
+
 def ingest(folder: Path) -> None:
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    skip = excluded()
     saved = 0
     for path in sorted((folder / "answers").glob("*.json")):
         answers = json.loads(path.read_text(encoding="utf-8"))
         read_tiles = answers.pop("_tiles", [path.stem])
         for key, items in answers.items():
             tile, k = key.rsplit("-", 1)
-            fid, page, rel = manifest["tiles"][tile][int(k) - 1]
-            if (CACHE / fid / f"{page}.json").exists():
+            fid, page, rel = manifest["tiles"][tile][int(k) - 1] if int(k) <= len(manifest["tiles"][tile]) else ("", 0, "")
+            if not fid or nfc(rel.replace("\\", "/").split("/")[-1]) in skip or (CACHE / fid / f"{page}.json").exists():
                 continue
             questions = []
             for it in items:
@@ -383,6 +415,8 @@ def ingest(folder: Path) -> None:
             saved += 1
         # every page of a read tile without an entry had no questions
         for k, (fid, page, rel) in enumerate(p for tile in read_tiles for p in manifest["tiles"].get(tile, [])):
+            if nfc(rel.replace("\\", "/").split("/")[-1]) in skip:
+                continue
             if not (CACHE / fid / f"{page}.json").exists():
                 (CACHE / fid).mkdir(parents=True, exist_ok=True)
                 (CACHE / fid / f"{page}.json").write_text(json.dumps(
@@ -407,6 +441,8 @@ def main() -> int:
     elif cmd == "tiles":
         count = int(sys.argv[sys.argv.index("--count") + 1]) if "--count" in sys.argv else 10
         tiles(Path(sys.argv[2]), count)
+    elif cmd == "redraw":
+        redraw(Path(sys.argv[2]), [a for a in sys.argv[3:] if a.startswith("t")])
     elif cmd == "ingest":
         ingest(Path(sys.argv[2]))
     elif cmd == "write":
