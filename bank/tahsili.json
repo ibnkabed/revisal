@@ -1,0 +1,11 @@
+{
+  "track": "tahsili",
+  "version": 1,
+  "sections": [
+    {"id": "math", "name": "الرياضيات"},
+    {"id": "physics", "name": "الفيزياء"},
+    {"id": "chemistry", "name": "الكيمياء"},
+    {"id": "biology", "name": "الأحياء"}
+  ],
+  "questions": []
+}

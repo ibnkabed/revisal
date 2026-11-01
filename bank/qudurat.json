@@ -1,0 +1,9 @@
+{
+  "track": "qudurat",
+  "version": 1,
+  "sections": [
+    {"id": "verbal", "name": "اللفظي"},
+    {"id": "quant", "name": "الكمي"}
+  ],
+  "questions": []
+}
