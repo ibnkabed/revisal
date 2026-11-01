@@ -156,13 +156,13 @@ struct SkillTag: View {
 }
 
 struct OptionButton: View {
-    enum State { case idle, right, wrong, dim }
+    enum Look { case idle, right, wrong, dim }
     let letter: String
     let text: String
-    let state: State
+    let state: Look
     let action: () -> Void
 
-    static func state(_ k: Int, chosen: Int?, answer: Int, reveal: Bool) -> State {
+    static func state(_ k: Int, chosen: Int?, answer: Int, reveal: Bool) -> Look {
         guard let chosen else { return .idle }
         if !reveal { return k == chosen ? .right : .dim }
         if k == answer { return .right }
@@ -247,7 +247,7 @@ struct ResultView: View {
             }
             if !skillLines.isEmpty {
                 Section("حسب المهارة") {
-                    ForEach(skillLines, id: \.skill) { line in
+                    ForEach(skillLines) { line in
                         HStack {
                             Text(line.skill).lineLimit(2)
                             Spacer()
@@ -274,7 +274,14 @@ struct ResultView: View {
         }
     }
 
-    private var skillLines: [(skill: String, right: Int, total: Int)] {
+    struct SkillLine: Identifiable {
+        let skill: String
+        let right: Int
+        let total: Int
+        var id: String { skill }
+    }
+
+    private var skillLines: [SkillLine] {
         var order: [String] = []
         var right: [String: Int] = [:], total: [String: Int] = [:]
         for (q, c) in zip(set.questions, set.choices) where !q.skill.isEmpty {
@@ -282,7 +289,7 @@ struct ResultView: View {
             total[q.skill, default: 0] += 1
             if c == q.answer { right[q.skill, default: 0] += 1 }
         }
-        return order.count > 1 ? order.map { ($0, right[$0] ?? 0, total[$0] ?? 0) } : []
+        return order.count > 1 ? order.map { SkillLine(skill: $0, right: right[$0] ?? 0, total: total[$0] ?? 0) } : []
     }
 }
 
