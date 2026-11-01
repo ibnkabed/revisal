@@ -27,9 +27,10 @@ struct ReviewQuestion: Codable, Hashable, Identifiable {
     var explanation: String
     var image: String?            // question bank only: a picture in bank/images/
     var source: String?           // question bank only: where it came from
+    var section: String?          // question bank only: verbal, quant, math, physics, chemistry, biology
 
     init(id: String = UUID().uuidString.lowercased(), skill: String, text: String, options: [String],
-         answer: Int, explanation: String, image: String? = nil, source: String? = nil) {
+         answer: Int, explanation: String, image: String? = nil, source: String? = nil, section: String? = nil) {
         self.id = id
         self.skill = skill
         self.text = text
@@ -38,9 +39,10 @@ struct ReviewQuestion: Codable, Hashable, Identifiable {
         self.explanation = explanation
         self.image = image
         self.source = source
+        self.section = section
     }
 
-    enum CodingKeys: String, CodingKey { case id, skill, text, options, answer, explanation, image, source }
+    enum CodingKeys: String, CodingKey { case id, skill, text, options, answer, explanation, image, source, section }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -52,6 +54,7 @@ struct ReviewQuestion: Codable, Hashable, Identifiable {
         explanation = (try? c.decodeIfPresent(String.self, forKey: .explanation)) ?? ""
         image = try? c.decodeIfPresent(String.self, forKey: .image)
         source = try? c.decodeIfPresent(String.self, forKey: .source)
+        section = try? c.decodeIfPresent(String.self, forKey: .section)
     }
 }
 

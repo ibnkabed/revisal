@@ -95,23 +95,34 @@ struct QuestionPage: View {
         let i = min(index, max(set.questions.count - 1, 0))
         let q = set.questions[i]
         let chosen = set.choices[i]
+        let theme = SectionTheme.of(q.section, track: set.source.track)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("السؤال \(i + 1) من \(set.questions.count)").font(.subheadline).foregroundColor(.secondary)
-                    Spacer()
-                }
                 ProgressView(value: Double(i + (chosen == nil ? 0 : 1)), total: Double(set.questions.count))
-                SkillTag(skill: q.skill)
-                if let image = q.image, let url = BankStore.imageURL(image), let ui = UIImage(contentsOfFile: url.path) {
-                    Image(uiImage: ui).resizable().scaledToFit().frame(maxWidth: .infinity)
+                    .tint(theme.color)
+                VStack(alignment: .leading, spacing: 16) {
+                    QuestionHeader(theme: theme, skill: q.skill, number: i + 1, total: set.questions.count)
+                    if let image = q.image, let url = BankStore.imageURL(image), let ui = UIImage(contentsOfFile: url.path) {
+                        Image(uiImage: ui).resizable().scaledToFit().frame(maxWidth: .infinity)
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.color.opacity(0.25)))
+                    }
+                    QuestionBody(question: q, theme: theme).id(q.id)
                 }
-                Text(q.text).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 20).fill(Color(.secondarySystemBackground)))
+                .overlay(alignment: .top) {
+                    UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
+                        .fill(theme.color).frame(height: 5)
+                }
                 ForEach(0..<q.options.count, id: \.self) { k in
-                    OptionButton(letter: optionLetters[k], text: q.options[k],
+                    OptionButton(letter: optionLetters[k], text: q.options[k], tint: theme.color,
                                  state: OptionButton.state(k, chosen: chosen, answer: q.answer, reveal: explain)) {
-                        store.choose(set.id, question: i, option: k)
-                        if !explain { next(from: i) }
+                        withAnimation(.easeOut(duration: 0.2)) { store.choose(set.id, question: i, option: k) }
+                        if !explain {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { next(from: i) }
+                        }
                     }
                     .disabled(chosen != nil)
                 }
@@ -124,6 +135,7 @@ struct QuestionPage: View {
                         Text(i + 1 < set.questions.count ? "التالي" : "النتيجة").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(theme.color)
                     .controlSize(.large)
                 }
             }
@@ -156,15 +168,16 @@ struct SkillTag: View {
 }
 
 struct OptionButton: View {
-    enum Look { case idle, right, wrong, dim }
+    enum Look { case idle, picked, right, wrong, dim }
     let letter: String
     let text: String
+    var tint: Color = .accentColor
     let state: Look
     let action: () -> Void
 
     static func state(_ k: Int, chosen: Int?, answer: Int, reveal: Bool) -> Look {
         guard let chosen else { return .idle }
-        if !reveal { return k == chosen ? .right : .dim }
+        if !reveal { return k == chosen ? .picked : .dim }
         if k == answer { return .right }
         return k == chosen ? .wrong : .dim
     }
@@ -172,27 +185,29 @@ struct OptionButton: View {
     var body: some View {
         Button(action: action) {
             HStack(alignment: .top, spacing: 12) {
-                Text(letter).font(.headline).frame(width: 28, height: 28)
-                    .background(Circle().fill(tint.opacity(0.18)))
+                Text(letter).font(.headline).frame(width: 30, height: 30)
+                    .foregroundColor(state == .idle || state == .dim ? color : .white)
+                    .background(Circle().fill(state == .idle || state == .dim ? color.opacity(0.15) : color))
                 Text(text).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 if state == .right { Image(systemName: "checkmark.circle.fill").foregroundColor(.green) }
                 if state == .wrong { Image(systemName: "xmark.circle.fill").foregroundColor(.red) }
             }
-            .padding(12)
+            .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 12).fill(tint.opacity(state == .idle ? 0.06 : 0.12)))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(tint.opacity(0.5), lineWidth: state == .idle ? 0.5 : 1.5))
-            .opacity(state == .dim ? 0.55 : 1)
+            .background(RoundedRectangle(cornerRadius: 14).fill(color.opacity(state == .idle ? 0.05 : 0.14)))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(color.opacity(state == .idle ? 0.3 : 0.9), lineWidth: state == .idle ? 1 : 2))
+            .scaleEffect(state == .picked || state == .right ? 1.01 : 1)
+            .opacity(state == .dim ? 0.5 : 1)
         }
         .buttonStyle(.plain)
     }
 
-    private var tint: Color {
+    private var color: Color {
         switch state {
         case .right: return .green
         case .wrong: return .red
-        default: return .accentColor
+        default: return tint
         }
     }
 }
