@@ -8,6 +8,16 @@
 - **النتيجة:** الدرجة، والدرجة حسب المهارة، وكل سؤال بإجابة الطالب والإجابة الصحيحة، وزر «أعد أخطائي».
 - **الخصوصية:** كل البيانات في الجوال وحده، والمفاتيح في Keychain، والجوال يتصل بمزوّد الذكاء الاصطناعي مباشرة.
 
+## صور من التطبيق
+
+| بنك القدرات | سؤال مقارنة | بعد الإجابة و«اشرح لي» |
+| --- | --- | --- |
+| <img src="docs/screenshots/bank.png" width="240"> | <img src="docs/screenshots/question.png" width="240"> | <img src="docs/screenshots/answered.png" width="240"> |
+
+| النتيجة حسب المهارة | المنهج والملخصات | مزودو الذكاء الاصطناعي |
+| --- | --- | --- |
+| <img src="docs/screenshots/result.png" width="240"> | <img src="docs/screenshots/curricula.png" width="240"> | <img src="docs/screenshots/settings.png" width="240"> |
+
 ## التثبيت
 
 نزّل أحدث `Revisal-unsigned.ipa` من صفحة [الإصدارات](https://github.com/ibnkabed/revisal/releases)، وثبّته بـ [Sideloadly](https://sideloadly.io/) وحساب Apple مجاني. والخطوات كاملة في [دليل الاستخدام](دليل-الاستخدام.md).
