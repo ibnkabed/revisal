@@ -42,7 +42,7 @@ final class Store: ObservableObject {
     private var booksFolder: URL { folder.appendingPathComponent("books", isDirectory: true) }
     private var textsFolder: URL { folder.appendingPathComponent("texts", isDirectory: true) }
 
-    static var dataFolder: URL {
+    nonisolated static var dataFolder: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Revisal", isDirectory: true)
     }
