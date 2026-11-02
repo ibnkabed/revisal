@@ -47,8 +47,8 @@ final class Store: ObservableObject {
             .appendingPathComponent("Revisal", isDirectory: true)
     }
 
-    init() {
-        folder = Self.dataFolder
+    init(folder: URL = Store.dataFolder) {
+        self.folder = folder
         db = StoreFile()
         load()
     }
