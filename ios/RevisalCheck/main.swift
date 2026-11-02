@@ -130,6 +130,10 @@ func bankSelftest() {
     check((try? Bank.load(Data(noWhy.utf8))) != nil, "a bank question needs no explanation")
     let badSection = sampleBank.replacingOccurrences(of: "\"section\":\"quant\",\"skill\":\"الهندسة\"", with: "\"section\":\"x\",\"skill\":\"الهندسة\"")
     check((try? Bank.load(Data(badSection.utf8))) == nil, "an unknown section is refused")
+    let signed = sampleBank.replacingOccurrences(of: "[\"14\",\"20\",\"24\",\"9\"]", with: "[\"14\",\"−14\",\"24\",\"9\"]")
+    check(signed != sampleBank && (try? Bank.load(Data(signed.utf8))) != nil, "options that differ only by a sign are different")
+    let same = sampleBank.replacingOccurrences(of: "[\"14\",\"20\",\"24\",\"9\"]", with: "[\"14\",\"1 4\",\"24\",\"9\"]")
+    check((try? Bank.load(Data(same.utf8))) == nil, "options that differ only by spaces are refused")
 
     var rng = SplitMix64(seed: 3)
     let pool = bank.questions

@@ -62,7 +62,8 @@ enum Bank {
             let q = s.question
             guard known.contains(s.section) else { throw BankError(message: "\(q.id): قسم غير معروف \(s.section)") }
             guard ids.insert(q.id).inserted else { throw BankError(message: "\(q.id): رقم مكرر") }
-            guard q.options.count == 4, Set(q.options.map(ReviewRules.norm)).count == 4,
+            // options told apart with their signs kept: norm() drops − × ÷ + , so "2019" and "−2019" looked equal
+            guard q.options.count == 4, Set(q.options.map { $0.filter { !$0.isWhitespace } }).count == 4,
                   !q.options.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) else {
                 throw BankError(message: "\(q.id): البدائل ليست أربعة مختلفة")
             }
