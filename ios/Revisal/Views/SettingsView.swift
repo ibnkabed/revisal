@@ -69,6 +69,12 @@ struct SettingsView: View {
                     Text("مجاني ومفتوح المصدر. يراجع معك أي منهج بأسئلة «اختر الإجابة الصحيحة» يكتبها الذكاء الاصطناعي من كتابك أو ملخصك، ومعه بنكا التحصيلي والقدرات.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
+                    // the owner's copyright, kept in every copy (MIT; owner, 2026-11-03)
+                    Text("Copyright (c) 2026 IbnKabed")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .environment(\.layoutDirection, .leftToRight)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .navigationTitle("الإعدادات")
