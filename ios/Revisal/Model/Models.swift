@@ -10,7 +10,7 @@ enum Track: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .curriculum: return "المناهج"
+        case .curriculum: return "المنهج"
         case .tahsili: return "التحصيلي"
         case .qudurat: return "القدرات"
         }
@@ -141,6 +141,7 @@ struct ReviewSet: Codable, Identifiable, Hashable {
     var questions: [ReviewQuestion]
     var choices: [Int?]
     var finishedAt: String?
+    var unitId: String?           // المنهج: the unit it was written from, the reference for «اشرح لي»
 
     init(title: String, source: ReviewSource, questions: [ReviewQuestion]) {
         self.title = title

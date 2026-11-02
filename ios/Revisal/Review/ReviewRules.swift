@@ -49,7 +49,7 @@ enum ReviewRules {
     /// Asks for the unit's own sections, skills and question styles: every curriculum has its own way.
     static func skillsMessages(subject: String, text: String, language: String) -> [[String: String]] {
         let labels = language == "ar" ? "بالعربية" : "in the language of the content (English for an English book)"
-        let system = "أنت خبير مناهج سعودي. تقرأ جزءًا من كتاب مدرسي وتستخرج أقسامه ومهاراته وأساليب الأسئلة التي تقيس فهمه، "
+        let system = "أنت خبير مناهج سعودي. تقرأ جزءًا من كتاب مدرسي أو ملخص له وتستخرج أقسامه ومهاراته وأساليب الأسئلة التي تقيس فهمه، "
             + "بحسب طبيعة المادة نفسها: في اللغة مثلًا القواعد والمفردات والفهم القرائي والإملاء، وفي العلوم المفاهيم والتطبيق "
             + "وتفسير الظواهر، وفي الرياضيات أنواع المسائل، وهكذا. اكتب كل عنوان قصيرًا محددًا (لا يتجاوز 50 حرفًا) \(labels)، "
             + "من 4 إلى 20 عنوانًا تغطي الجزء كله بلا تكرار. "
@@ -95,13 +95,12 @@ enum ReviewRules {
         let lang = language == "ar"
             ? "السؤال والبدائل بالعربية الفصحى السليمة"
             : "the question and its options in clear correct English, as in the book"
-        return "أنت معلم سعودي خبير يكتب أسئلة مراجعة لطالب يريد التأكد من فهمه للمنهج، من صفحات الكتاب المعطاة فقط. "
+        return "أنت معلم سعودي خبير يكتب أسئلة مراجعة لطالب يريد التأكد من فهمه للمنهج، من الصفحات المعطاة فقط، من كتاب أو ملخص. "
             + "كل سؤال من نوع «اختر الإجابة الصحيحة»: \(lang)، وأربعة بدائل مختلفة ومعقولة وقصيرة، واحد منها فقط صحيح يقينًا، "
             + "ولا «جميع ما سبق» ولا «لا شيء مما سبق». يقيس السؤال الفهم لا الحفظ الحرفي متى أمكن، ويُجاب من النص وحده. "
-            + "اكتب لكل سؤال المهارة التي يقيسها كما أُعطيت لك حرفيًا، وشرحًا بالعربية (لا يتجاوز 400 حرف) يبيّن لماذا الإجابة "
-            + "صحيحة ولماذا أقرب البدائل الخاطئة خطأ، ليتعلم الطالب من خطئه. "
+            + "اكتب لكل سؤال المهارة التي يقيسها كما أُعطيت لك حرفيًا، ولا تكتب شرحًا: الطالب يطلبه بنفسه إن أراد. "
             + "أعد JSON فقط بهذا الشكل: "
-            + #"{"questions":[{"skill":"...","text":"...","options":["...","...","...","..."],"answer":0,"explanation":"..."}]}"#
+            + #"{"questions":[{"skill":"...","text":"...","options":["...","...","...","..."],"answer":0}]}"#
             + " حيث answer رقم البديل الصحيح من 0 إلى 3."
     }
 
@@ -117,10 +116,10 @@ enum ReviewRules {
         return head + "\n\nنص الصفحات:\n" + text
     }
 
-    /// The second provider's review of the answers and explanations, listing the faulty ones by number.
+    /// The second provider's review of the answers, listing the faulty ones by number.
     static func reviewMessages(text: String, items: [ReviewQuestion]) -> [[String: String]] {
         let system = "أنت مراجع أسئلة دقيق. افحص كل سؤال على النص: هل الإجابة المعلّمة صحيحة يقينًا؟ هل يوجد بديل آخر صحيح أيضًا؟ "
-            + "هل الشرح صحيح ومطابق للإجابة؟ هل اللغة سليمة والسؤال واضح؟ "
+            + "هل اللغة سليمة والسؤال واضح؟ "
             + #"أعد JSON فقط: {"bad":[{"n":رقم,"why":"السبب"}]} ولا تذكر السليم."#
         let user = "الأسئلة:\n" + shownJSON(items) + "\n\nالنص:\n" + text
         return [["role": "system", "content": system], ["role": "user", "content": user]]
@@ -130,8 +129,7 @@ enum ReviewRules {
         let parts = items.enumerated().map { pair -> String in
             let q = pair.element
             return "{\"n\": \(pair.offset + 1), \"text\": \(jsonString(q.text)), \"options\": ["
-                + q.options.map(jsonString).joined(separator: ", ") + "], \"answer\": \(q.answer), \"explanation\": "
-                + jsonString(q.explanation) + "}"
+                + q.options.map(jsonString).joined(separator: ", ") + "], \"answer\": \(q.answer)}"
         }
         return "[" + parts.joined(separator: ", ") + "]"
     }
@@ -180,7 +178,8 @@ enum ReviewRules {
 
     /// One question from the provider's JSON, or nil when it fails the local checks: a stem of 5-300
     /// characters; four different non-empty options of at most 120 characters, none "all/none of the above";
-    /// answer 0-3 (or "0"-"3", "A"-"D", "أ"-"د"); an explanation of 10-700 characters. A skill not among
+    /// answer 0-3 (or "0"-"3", "A"-"D", "أ"-"د"). No explanation: the student asks for one with «اشرح لي»
+    /// (owner, 2026-11-02), so any the provider writes anyway is dropped. A skill not among
     /// `skills` takes `fallback` (the skill it was asked for).
     static func clean(_ raw: Any, skills: [String], fallback: String) -> ReviewQuestion? {
         guard let d = raw as? [String: Any] else { return nil }
@@ -197,12 +196,9 @@ enum ReviewRules {
 
         guard let answer = answerIndex(d["answer"]) else { return nil }
 
-        let explanation = pyString(d["explanation"]).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (10...700).contains(explanation.unicodeScalars.count) else { return nil }
-
         let asked = squash(pyString(d["skill"]))
         let skill = skills.first { norm($0) == norm(asked) } ?? fallback
-        return ReviewQuestion(skill: skill, text: text, options: options, answer: answer, explanation: explanation)
+        return ReviewQuestion(skill: skill, text: text, options: options, answer: answer, explanation: "")
     }
 
     /// 0-3 from a JSON number, a digit string, or a letter A-D / أ-د.
@@ -241,6 +237,23 @@ enum ReviewRules {
             q.answer = target
             questions[index] = q
         }
+    }
+
+    /// The four comparison options of القدرات keep their printed order (owner, 2026-11-02).
+    static let comparisonOptions = ["القيمة الأولى أكبر", "القيمة الثانية أكبر", "القيمتان متساويتان", "المعطيات غير كافية"]
+
+    /// Also the sources' wordier form («القيمة الأولى أكبر من الثانية»…).
+    static func fixedOrder(_ q: ReviewQuestion) -> Bool {
+        q.options == comparisonOptions || q.options.contains { $0.hasPrefix("القيمة الأولى أكبر") }
+    }
+
+    /// Like `balance`, but a question whose options have a fixed order keeps them: the banks put the right
+    /// answer under أ far more often than under د, so every review shuffles the others (owner, 2026-11-02).
+    static func balanceKeepingFixed(_ questions: inout [ReviewQuestion], seed: UInt64?) {
+        let movable = questions.indices.filter { !fixedOrder(questions[$0]) }
+        var subset = movable.map { questions[$0] }
+        balance(&subset, seed: seed)
+        for (i, index) in movable.enumerated() { questions[index] = subset[i] }
     }
 
     static func balance(_ questions: inout [ReviewQuestion], seed: UInt64?) {
@@ -317,5 +330,53 @@ enum ReviewRules {
     /// Every whitespace run made one space, trimmed.
     static func squash(_ s: String) -> String {
         Pattern.replace(#"\s+"#, in: s, with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+// MARK: explain on request
+
+/// A question explained on the student's request (owner, 2026-11-02), in the banks and in المنهج alike: no
+/// question carries an explanation, so a «اشرح لي» button asks the student's own linked provider, giving it the
+/// right answer to justify rather than solve from scratch, and for المنهج the unit's pages as the reference.
+/// The reply is kept on the phone by question id.
+extension ReviewRules {
+    static let maxExplanation = 900
+
+    static let maxReference = 20000
+
+    static func explainMessages(_ q: ReviewQuestion, track: Track, hasImage: Bool,
+                                reference: String? = nil) -> [[String: String]] {
+        let exam = track == .qudurat ? "اختبار القدرات العامة" : (track == .tahsili ? "الاختبار التحصيلي" : "مراجعة المنهج")
+        let system = "أنت معلم سعودي خبير في \(exam). يُعطى لك سؤال «اختر الإجابة الصحيحة» وبدائله الأربعة والإجابة الصحيحة "
+            + "المعتمدة. اشرح للطالب بالعربية الفصحى المبسطة لماذا هذه الإجابة صحيحة: خطوات الحل باختصار في المسائل، "
+            + "والمعنى أو العلاقة في الأسئلة اللفظية، ثم لماذا أقرب بديل خاطئ خطأ. لا تغيّر الإجابة المعتمدة ولا تشكك فيها. "
+            + "نص عادي بلا عناوين ولا رموز Markdown، في \(maxExplanation / 2) حرف تقريبًا ولا يتجاوز \(maxExplanation)."
+        var user = (q.skill.isEmpty ? "" : "المهارة: \(q.skill)\n") + "السؤال: \(q.text)\n"
+        if hasImage { user += "(مع السؤال شكل في الصورة المرفقة)\n" }
+        let letters = ["أ", "ب", "ج", "د"]
+        for (k, o) in q.options.enumerated() where k < letters.count { user += "\(letters[k])) \(o)\n" }
+        if q.answer >= 0 && q.answer < min(q.options.count, letters.count) {
+            user += "الإجابة الصحيحة: \(letters[q.answer])) \(q.options[q.answer])"
+        }
+        if let reference, !reference.isEmpty {
+            // A summary is often bare points with no explanation (owner, 2026-11-02): the text is the reference,
+            // and the model explains from its own knowledge of the subject where the text is too brief.
+            user += "\n\nالسؤال مكتوب من هذا النص، وقد يكون ملخصًا مختصرًا بلا شرح. اعتمد عليه أولًا ولا تخالفه، "
+                + "وإن لم يكفِ لبيان السبب فاشرح من معرفتك بالمادة في حدود مستوى الطالب:\n"
+                + String(String.UnicodeScalarView(reference.unicodeScalars.prefix(maxReference)))
+        }
+        return [["role": "system", "content": system], ["role": "user", "content": user]]
+    }
+
+    /// The reply as plain text: code fences, Markdown marks and extra blank lines removed, capped in length;
+    /// nil when nothing is left.
+    static func cleanExplanation(_ reply: String) -> String? {
+        var s = Pattern.replace(#"```[a-zA-Z]*"#, in: reply, with: "")
+        s = Pattern.replace(#"(\*\*|__)"#, in: s, with: "")
+        s = Pattern.replace(#"^#+ ?"#, in: s, with: "", options: .anchorsMatchLines)
+        s = Pattern.replace(#"\n{3,}"#, in: s, with: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return nil }
+        if s.count > maxExplanation { s = String(s.prefix(maxExplanation)).trimmingCharacters(in: .whitespaces) + "…" }
+        return s
     }
 }

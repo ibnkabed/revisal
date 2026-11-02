@@ -37,7 +37,9 @@ func reviewSelftest() {
     check(ReviewRules.clean(same, skills: [], fallback: "x") == nil, "repeated options are refused")
 
     let noWhy = json(#"{"skill":"x","text":"سؤال بلا شرح للإجابة؟","options":["1","2","3","4"],"answer":0,"explanation":""}"#)
-    check(ReviewRules.clean(noWhy, skills: [], fallback: "x") == nil, "a question without an explanation is refused")
+    check(ReviewRules.clean(noWhy, skills: [], fallback: "x") != nil, "a question without an explanation is kept (explained on request)")
+    check(ReviewRules.clean(good, skills: [], fallback: "x")?.explanation == "", "a written explanation is dropped")
+    check(!ReviewRules.systemPrompt("ar").contains("\"explanation\""), "the writer is not asked for an explanation")
 
     let fenced = "```json\n{\"skills\":[\"القواعد\",\"المفردات\",\"القواعد \",\"\",\"الفهم القرائي\"]}\n```"
     check(ReviewRules.parseSkills(fenced) == ["القواعد", "المفردات", "الفهم القرائي"], "skills: fences, blanks and repeats removed")
@@ -79,6 +81,25 @@ func reviewSelftest() {
     many = ReviewRules.record([ReviewQuestion(skill: "k", text: "New?", options: ["1", "2", "3", "4"], answer: 0, explanation: "e")], in: many)
     check(many.stems.count == ReviewRules.keptStems && many.stems.last == "new" && many.asked["k"] == 1, "stems are capped, newest kept")
 
+    var mixed = (0..<8).map { i in ReviewQuestion(skill: "s", text: "q\(i)", options: ["r\(i)", "w1", "w2", "w3"], answer: 0, explanation: "") }
+    mixed.insert(ReviewQuestion(skill: "المقارنة", text: "قارن", options: ReviewRules.comparisonOptions, answer: 2, explanation: ""), at: 3)
+    ReviewRules.balanceKeepingFixed(&mixed, seed: 7)
+    check(mixed[3].options == ReviewRules.comparisonOptions && mixed[3].answer == 2, "bank: comparison options keep their order")
+    check(Set(mixed.enumerated().filter { $0.offset != 3 }.map { $0.element.answer }).count > 1
+          && mixed.allSatisfy { $0.options[$0.answer].hasPrefix("r") || $0.text == "قارن" }, "bank: other options are shuffled, the right one kept")
+    let bankQ = ReviewQuestion(skill: "التناظر", text: "قلم : كتابة", options: ["كتاب : مكتبة", "مقص : قص", "ورق : شجر", "معلم : طالب"],
+                               answer: 1, explanation: "")
+    let ask = ReviewRules.explainMessages(bankQ, track: .qudurat, hasImage: true)
+    check(ask.count == 2 && ask[1]["content"]!.contains("الإجابة الصحيحة: ب) مقص : قص") && ask[1]["content"]!.contains("الصورة")
+          && ask[0]["content"]!.contains("القدرات"), "explain: the bank's right answer and the figure are in the request")
+    check(ReviewRules.cleanExplanation("```\n## الحل\n**المقص** أداة للقص.\n\n\n\nكما القلم للكتابة.\n```") == "الحل\nالمقص أداة للقص.\n\nكما القلم للكتابة.",
+          "explain: fences, Markdown marks and blank runs are removed")
+    let unitAsk = ReviewRules.explainMessages(bankQ, track: .curriculum, hasImage: false, reference: "نص الوحدة")
+    check(unitAsk[1]["content"]!.hasSuffix("نص الوحدة") && !unitAsk[1]["content"]!.contains("الصورة"),
+          "explain: a curriculum question carries its unit's pages")
+    check(ReviewRules.cleanExplanation("  \n ") == nil, "explain: an empty reply is refused")
+    check(ReviewRules.cleanExplanation(String(repeating: "ا", count: 2000))!.count == ReviewRules.maxExplanation + 1,
+          "explain: a long reply is capped")
     let prompt = ReviewRules.userPrompt(subject: "لغتي", targets: ["أ", "ب"], text: "النص", avoid: ["قديم"])
     check(prompt.contains("1. أ") && prompt.contains("2. ب") && prompt.contains("- قديم"), "the prompt lists the skills and the old stems")
 }

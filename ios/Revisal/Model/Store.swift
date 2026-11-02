@@ -8,8 +8,9 @@ struct StoreFile: Codable {
     var sets: [ReviewSet] = []
     var bankSeen: [String: [String]] = [:]    // Bank.seenKey -> question ids seen in the current round
     var settings = Settings()
+    var explanations: [String: String] = [:]  // bank question id -> the explanation the student asked for
 
-    enum CodingKeys: String, CodingKey { case books, sets, bankSeen, settings }
+    enum CodingKeys: String, CodingKey { case books, sets, bankSeen, settings, explanations }
 
     init() {}
 
@@ -19,6 +20,7 @@ struct StoreFile: Codable {
         sets = (try? c.decodeIfPresent([ReviewSet].self, forKey: .sets)) ?? []
         bankSeen = (try? c.decodeIfPresent([String: [String]].self, forKey: .bankSeen)) ?? [:]
         settings = (try? c.decodeIfPresent(Settings.self, forKey: .settings)) ?? Settings()
+        explanations = (try? c.decodeIfPresent([String: String].self, forKey: .explanations)) ?? [:]
     }
 }
 
@@ -102,7 +104,7 @@ final class Store: ObservableObject {
         var book = Book(id: id, name: url.deletingPathExtension().lastPathComponent, pages: pages,
                         size: data.count, addedAt: Stamp.now())
         if pages <= BookRules.maxPages {
-            book.units = [Unit(name: "الكتاب كله", pageFrom: 1, pageTo: pages)]
+            book.units = [Unit(name: "الملف كله", pageFrom: 1, pageTo: pages)]
         }
         db.books.append(book)
         save()
@@ -190,6 +192,13 @@ final class Store: ObservableObject {
         guard let i = db.sets.firstIndex(where: { $0.id == setId }), index < db.sets[i].choices.count,
               db.sets[i].choices[index] == nil else { return }
         db.sets[i].choices[index] = option
+        save()
+    }
+
+    func explanation(_ questionId: String) -> String? { db.explanations[questionId] }
+
+    func saveExplanation(_ questionId: String, _ text: String) {
+        db.explanations[questionId] = text
         save()
     }
 

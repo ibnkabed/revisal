@@ -5,7 +5,7 @@ import Foundation
 ///
 /// A unit: its text (read once and kept; scanned pages are transcribed by Gemini) -> its skills (listed once
 /// by the AI) -> the least-asked skills -> one question per skill as JSON -> local checks (ReviewRules) -> a
-/// second linked provider checks the answers and explanations, and the faulty ones are written again ->
+/// second linked provider checks the answers, and the faulty ones are written again ->
 /// the answer letters are balanced -> the unit remembers the skills and stems asked.
 enum ReviewMaker {
     /// True while a review is being written (one at a time).
@@ -52,8 +52,10 @@ enum ReviewMaker {
         let drawn = Bank.draw(pool, count: src.count, seen: store.bankSeen(src.track))
         store.setBankSeen(src.track, drawn.seen)
         let sectionName = file.sections.first { $0.id == src.section }?.name
+        var questions = drawn.questions
+        ReviewRules.balanceKeepingFixed(&questions, seed: nil)
         let set = ReviewSet(title: src.track.title + (sectionName.map { " · \($0)" } ?? ""), source: src,
-                            questions: drawn.questions)
+                            questions: questions)
         store.add(set)
         return set
     }
@@ -98,7 +100,7 @@ enum ReviewMaker {
 
         let writer = used.first
         if ai.linked.contains(where: { $0.id != writer }) && !items.isEmpty {
-            progress("مزوّد ثانٍ يراجع الإجابات والشرح…")
+            progress("مزوّد ثانٍ يراجع الإجابات…")
             do {
                 let reply = try await ai.chat(ReviewRules.reviewMessages(text: text, items: items), jsonMode: true,
                                               exclude: writer.map { [$0] } ?? [], temperature: 0.1)
@@ -124,7 +126,8 @@ enum ReviewMaker {
         if items.isEmpty { throw ReviewError("لم يُكتب أي سؤال صالح. جرّب مرة أخرى أو مزوّدًا آخر.") }
         ReviewRules.balance(&items, seed: nil)
         store.recordUnit(book.id, ReviewRules.record(items, in: unit))
-        let set = ReviewSet(title: book.name + " · " + unit.name, source: src, questions: items)
+        var set = ReviewSet(title: book.name + " · " + unit.name, source: src, questions: items)
+        set.unitId = unit.id
         store.add(set)
         return set
     }

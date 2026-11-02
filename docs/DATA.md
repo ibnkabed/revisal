@@ -9,6 +9,8 @@ Everything is on the phone, in `Application Support/Revisal/`:
   - `sets`: the reviews (at most 200): title, `source` (track, book and unit or bank section, count), questions,
     the student's `choices`, `finishedAt`.
   - `bankSeen`: per bank, the question ids seen in the current round.
+  - `explanations`: bank question id -> the explanation the student asked for with «اشرح لي», for bank and المنهج questions alike (written once by the student's own provider, Gemini when the question has a figure, an المنهج question with its unit's pages as the reference).
+  - each review set may carry `unitId`: the المنهج unit it was written from.
   - `settings`: `explainEach` (the explanation right after each answer).
 - `books/<id>.pdf` — the added books.
 - `texts/<unitId>.txt` — a unit's text, read once (Gemini transcribes scanned pages), so later reviews cost one call.

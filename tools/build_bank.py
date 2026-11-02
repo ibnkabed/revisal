@@ -84,16 +84,19 @@ def excluded() -> set[str]:
 
 def nfc(s: str) -> str:
     """File names on disk may carry decomposed Arabic letters (أ as ا + hamza): compare them composed."""
-    return unicodedata.normalize("NFC", s)
+    """Direction marks (U+200E, U+2066...) some names carry are dropped too."""
+    return re.sub("[‎‏‪-‮⁦-⁩]", "", unicodedata.normalize("NFC", s))
 
 
 ONLY: str | None = None   # --only القدرات: one source folder
+NAMES: list[str] = []     # --name لفظي,رياضيات: only files whose name holds one of these (to fill a thin section)
 
 
 def pdfs() -> list[Path]:
     skip = excluded()
     base = SOURCES / ONLY if ONLY else SOURCES
-    return sorted(p for p in base.rglob("*") if p.suffix.lower() == ".pdf" and nfc(p.name) not in skip)
+    return sorted(p for p in base.rglob("*") if p.suffix.lower() == ".pdf" and nfc(p.name) not in skip
+                  and (not NAMES or any(w in nfc(p.name) for w in NAMES)))
 
 
 def file_id(path: Path) -> str:
@@ -202,6 +205,14 @@ def read(limit: int | None) -> None:
     out(json.dumps(totals, ensure_ascii=False))
 
 
+# (section, skill) read from a page -> the section it belongs to: Tahsili questions printed inside Qudurat files
+# (owner, 2026-11-01: each question in its right section only)
+MISFILED = {("verbal", "الأحياء"): "biology", ("verbal", "المعلومات العامة"): "biology",
+            ("verbal", "الكيمياء"): "chemistry", ("verbal", "العلوم"): "chemistry",
+            ("verbal", "الحقائق العلمية"): "chemistry", ("verbal", "الخواص الفيزيائية للغازات"): "chemistry",
+            ("quant", "الكيمياء"): "chemistry", ("quant", "الفيزياء"): "physics"}
+
+
 def norm(s: str) -> str:
     s = re.sub(r"[ًٌٍَُِّْـ]", "", s or "")
     s = s.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ة", "ه").replace("ى", "ي")
@@ -219,14 +230,17 @@ def clean(q: dict) -> dict | None:
     options = [re.sub(r"\s+", " ", str(o or "")).strip() for o in raw]
     letter = str(q.get("answer") or "").strip().lower()[:1]
     section = str(q.get("section") or "")
-    if len(options) != 4 or any(not o for o in options) or len({norm(o) for o in options}) != 4:
+    skill = re.sub(r"\s+", " ", str(q.get("skill") or "")).strip()
+    section = MISFILED.get((section, skill), section)   # science questions found in a Qudurat file go to التحصيلي
+    # options are told apart with their signs kept: norm() drops − / , ; so (1 , 3) and (−1 , 3) looked equal
+    if len(options) != 4 or any(not o for o in options) or len({re.sub(r"\s+", "", o) for o in options}) != 4:
         return None
     if letter not in LETTERS or section not in TRACK_OF_SECTION:
         return None
     if not text and not q.get("figure"):
         return None
     return {"text": text, "options": options, "answer": LETTERS[letter], "section": section,
-            "skill": re.sub(r"\s+", " ", str(q.get("skill") or "")).strip()[:40],
+            "skill": skill[:40],
             "figure": bool(q.get("figure")), "box": q.get("box")}
 
 
@@ -303,6 +317,11 @@ TILE_W = 784       # two pages per row in a 1568-pixel image: the most Claude re
 TILE_MAX_H = 1568
 
 
+QUESTION_WORDS = ("تجميع", "تسريب", "أسئلة", "اسئلة", "سؤال", "اختبار", "محاكي", "نموذج", "نماذج", "توقعات",
+                  "كويز", "تدريب", "بنك", "تجميعات", "مختبرين", "الفترة", "الفتره")
+SUMMARY_WORDS = ("ملخص", "تلخيص", "قوانين", "قواعد", "شرح", "خرائط", "رسومات")
+
+
 def page_key(path: Path, i: int) -> str:
     pix = pymupdf.open(path)[i].get_pixmap(dpi=24, colorspace=pymupdf.csGRAY)
     return hashlib.md5(pix.samples).hexdigest()
@@ -316,7 +335,13 @@ def tiles(folder: Path, count: int) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"tiles": {}, "seen": {}}
     queued = {tuple(x[:2]) for v in manifest["tiles"].values() for x in v}
     pending = []
-    for p in pdfs():
+    # question files first (by name), smaller first: many distinct sources, while the huge collections mostly
+    # repeat them; summaries, rules and slides last
+    def order(f: Path):
+        name = nfc(f.name)
+        asks = any(w in name for w in QUESTION_WORDS) and not any(w in name for w in SUMMARY_WORDS)
+        return (not asks, len(pymupdf.open(f)))
+    for p in sorted(pdfs(), key=order):
         fid = file_id(p)
         doc = pymupdf.open(p)
         for i in range(len(doc)):
@@ -389,6 +414,20 @@ def redraw(folder: Path, names: list[str]) -> None:
     out(f"أُعيد رسم {len(names)}")
 
 
+def single(folder: Path, names: list[str]) -> None:
+    """Each page of the listed tiles as its own sharp image (tNNNN_k.jpg), for dense pages too small in a tile."""
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    by_id = {file_id(p): p for p in SOURCES.rglob("*.pdf")}
+    made = 0
+    for name in names:
+        for k, (fid, page, rel) in enumerate(manifest["tiles"][name], 1):
+            pg = pymupdf.open(by_id[fid])[page - 1]
+            zoom = min(1568 / pg.rect.width, 1568 / pg.rect.height)
+            pg.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom)).save(folder / f"{name}_{k}.png")
+            made += 1
+    out(f"صفحات مفردة: {made}")
+
+
 def ingest(folder: Path) -> None:
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     skip = excluded()
@@ -429,10 +468,12 @@ def ingest(folder: Path) -> None:
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    global ONLY
+    global ONLY, NAMES
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if "--only" in sys.argv:
         ONLY = sys.argv[sys.argv.index("--only") + 1]
+    if "--name" in sys.argv:
+        NAMES = [nfc(w) for w in sys.argv[sys.argv.index("--name") + 1].split(",") if w]
     if cmd == "scan":
         scan()
     elif cmd == "read":
@@ -443,6 +484,8 @@ def main() -> int:
         tiles(Path(sys.argv[2]), count)
     elif cmd == "redraw":
         redraw(Path(sys.argv[2]), [a for a in sys.argv[3:] if a.startswith("t")])
+    elif cmd == "single":
+        single(Path(sys.argv[2]), [a for a in sys.argv[3:] if a.startswith("t")])
     elif cmd == "ingest":
         ingest(Path(sys.argv[2]))
     elif cmd == "write":

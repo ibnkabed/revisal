@@ -138,16 +138,22 @@ final class AIClient: ObservableObject {
 
     /// Gemini's own API reads the PDF pages as images (scanned books, broken Arabic text layers).
     func geminiPDF(_ pdf: Data, prompt: String) async throws -> String {
+        try await gemini(pdf, mime: "application/pdf", prompt: prompt,
+                         missing: "هذا الكتاب صور لا نص فيها، ويقرؤه Gemini وحده: اربط Gemini من «الإعدادات».")
+    }
+
+    /// Gemini's own API with one file (a PDF, or a bank question's figure) and a prompt.
+    func gemini(_ file: Data, mime: String, prompt: String, missing: String) async throws -> String {
         guard let g = linked.first(where: { $0.id == "gemini" }), let key = Self.key("gemini") else {
-            throw AIError("هذا الكتاب صور لا نص فيها، ويقرؤه Gemini وحده: اربط Gemini من «الإعدادات».")
+            throw AIError(missing)
         }
         let model = g.model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? g.model
         guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
             throw AIError("Gemini: " + Self.errorText(Unexpected()))
         }
         let body: [String: Any] = [
-            "contents": [["parts": [["inline_data": ["mime_type": "application/pdf",
-                                                    "data": pdf.base64EncodedString()]],
+            "contents": [["parts": [["inline_data": ["mime_type": mime,
+                                                    "data": file.base64EncodedString()]],
                                     ["text": prompt]]]],
             "generationConfig": ["temperature": 0.2],
         ]

@@ -74,7 +74,7 @@ struct RunView: View {
     private func retry() {
         guard let set, !set.missed.isEmpty else { return }
         var again = set.missed
-        ReviewRules.balance(&again, seed: nil)
+        ReviewRules.balanceKeepingFixed(&again, seed: nil)
         let next = ReviewSet(title: set.title + " · أخطائي", source: set.source, questions: again)
         store.add(next)
         index = 0
@@ -129,6 +129,7 @@ struct QuestionPage: View {
                 if explain, let chosen {
                     Feedback(right: chosen == q.answer, answer: q.options[q.answer],
                              letter: optionLetters[q.answer], explanation: q.explanation)
+                    ExplainBox(question: q, track: set.source.track, unitId: set.unitId).id(q.id)
                     Button {
                         next(from: i)
                     } label: {
@@ -276,7 +277,7 @@ struct ResultView: View {
             }
             Section("الأسئلة") {
                 ForEach(Array(set.questions.enumerated()), id: \.element.id) { i, q in
-                    AnswerRow(n: i + 1, question: q, chosen: set.choices[i])
+                    AnswerRow(n: i + 1, question: q, chosen: set.choices[i], track: set.source.track, unitId: set.unitId)
                 }
             }
         }
@@ -314,6 +315,8 @@ struct AnswerRow: View {
     let n: Int
     let question: ReviewQuestion
     let chosen: Int?
+    let track: Track
+    let unitId: String?
 
     var body: some View {
         let right = chosen == question.answer
@@ -335,7 +338,80 @@ struct AnswerRow: View {
                 Text(question.explanation).font(.callout).foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            ExplainBox(question: question, track: track, unitId: unitId)
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// «اشرح لي» under every question, bank or المنهج (owner, 2026-11-02): the student's own linked provider explains
+/// why the answer is right, once; the explanation is kept on the phone. A question with a figure goes to Gemini,
+/// which sees the picture; an المنهج question sends its unit's pages as the reference. A review saved before
+/// 2026-11-02 shows the explanation it was written with instead.
+struct ExplainBox: View {
+    let question: ReviewQuestion
+    let track: Track
+    var unitId: String? = nil
+    @EnvironmentObject private var store: Store
+    @EnvironmentObject private var ai: AIClient
+    @State private var asking = false
+    @State private var error: String?
+
+    var body: some View {
+        if question.explanation.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                if let text = store.explanation(question.id) {
+                    Label("الشرح", systemImage: "text.bubble").font(.subheadline.weight(.bold)).foregroundColor(.secondary)
+                    Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
+                } else if asking {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("أطلب الشرح…").foregroundColor(.secondary)
+                    }
+                } else {
+                    Button(action: explain) {
+                        Label("اشرح لي", systemImage: "text.bubble")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                if let error {
+                    Text(error).font(.callout).foregroundColor(.red).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func explain() {
+        if ai.linked.isEmpty {
+            error = "الشرح يكتبه الذكاء الاصطناعي بمفتاحك المجاني: اربط مزوّدًا من «الإعدادات»، وGemini يكفي."
+            return
+        }
+        asking = true
+        error = nil
+        Task {
+            defer { asking = false }
+            do {
+                let image = question.image.flatMap { BankStore.imageURL($0) }.flatMap { url in
+                    (try? Data(contentsOf: url)).map { (data: $0, ext: url.pathExtension.lowercased()) }
+                }
+                let messages = ReviewRules.explainMessages(question, track: track, hasImage: image != nil,
+                                                           reference: unitId.flatMap { store.unitText($0) })
+                let reply: String
+                if let image {
+                    let prompt = messages.map { $0["content"] ?? "" }.joined(separator: "\n\n")
+                    reply = try await ai.gemini(image.data, mime: image.ext == "png" ? "image/png" : "image/jpeg", prompt: prompt,
+                                                missing: "في هذا السؤال شكل يراه Gemini وحده: اربط Gemini من «الإعدادات» ليشرحه.")
+                } else {
+                    reply = try await ai.chat(messages, jsonMode: false, temperature: 0.3).text
+                }
+                guard let text = ReviewRules.cleanExplanation(reply) else {
+                    error = "لم يصل شرح. جرّب مرة أخرى."
+                    return
+                }
+                store.saveExplanation(question.id, text)
+            } catch {
+                self.error = error.localizedDescription
+            }
+        }
     }
 }

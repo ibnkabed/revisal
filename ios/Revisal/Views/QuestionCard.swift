@@ -30,7 +30,7 @@ enum QuestionTemplate {
     case analogy(left: String, right: String)
     case oddOne
 
-    static let comparisonOptions = ["القيمة الأولى أكبر", "القيمة الثانية أكبر", "القيمتان متساويتان", "المعطيات غير كافية"]
+    static let comparisonOptions = ReviewRules.comparisonOptions
 
     static func of(_ q: ReviewQuestion) -> QuestionTemplate {
         let text = q.text

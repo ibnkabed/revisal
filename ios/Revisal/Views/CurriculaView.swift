@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The student's own books: add any curriculum as a PDF, name its units by their pages, and review a unit.
+/// The student's own books and summaries (owner, 2026-11-02): add any curriculum or summary as a PDF, name its units by their pages, and review a unit.
 struct CurriculaView: View {
     @EnvironmentObject private var store: Store
     @EnvironmentObject private var ai: AIClient
@@ -13,7 +13,7 @@ struct CurriculaView: View {
             List {
                 if ai.linked.isEmpty {
                     Section {
-                        Label("اربط مزوّد ذكاء اصطناعي من «الإعدادات» ليكتب أسئلة منهجك: Gemini مجاني ويكفي.",
+                        Label("اربط مزوّد ذكاء اصطناعي من «الإعدادات» ليكتب أسئلة كتبك وملخصاتك: Gemini مجاني ويكفي.",
                               systemImage: "key")
                             .foregroundColor(.orange)
                     }
@@ -21,8 +21,8 @@ struct CurriculaView: View {
                 if store.books.isEmpty {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("أضف كتاب أي مادة بصيغة PDF").font(.headline)
-                            Text("ثم حدّد وحداته بصفحاتها، واختر وحدة وعدد الأسئلة. يكتب الذكاء الاصطناعي أسئلة «اختر الإجابة الصحيحة» من أربعة خيارات، موزعة على أقسام الوحدة ومهاراتها، ومع كل سؤال شرح الإجابة الصحيحة.")
+                            Text("أضف كتاب أي مادة أو ملخصًا لها بصيغة PDF").font(.headline)
+                            Text("ثم حدّد وحداته بصفحاتها (والملخص القصير يُراجع كله)، واختر وحدة وعدد الأسئلة. يكتب الذكاء الاصطناعي أسئلة «اختر الإجابة الصحيحة» من أربعة خيارات، موزعة على أقسام الوحدة ومهاراتها، وتحت كل سؤال زر «اشرح لي» إن أردت شرح إجابته.")
                                 .font(.callout).foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
@@ -45,7 +45,7 @@ struct CurriculaView: View {
                     Text(error).foregroundColor(.red)
                 }
             }
-            .navigationTitle("المناهج")
+            .navigationTitle("المنهج")
             .navigationDestination(for: Book.self) { book in
                 BookView(bookId: book.id)
             }
@@ -54,7 +54,7 @@ struct CurriculaView: View {
                     Button {
                         picking = true
                     } label: {
-                        Label("أضف كتابًا", systemImage: "doc.badge.plus")
+                        Label("أضف كتابًا أو ملخصًا", systemImage: "doc.badge.plus")
                     }
                 }
             }
@@ -95,8 +95,8 @@ struct BookView: View {
     var body: some View {
         Form {
             if let book {
-                Section("الكتاب") {
-                    TextField("اسم الكتاب", text: $name, onCommit: saveInfo)
+                Section("الملف") {
+                    TextField("اسم الكتاب أو الملخص", text: $name, onCommit: saveInfo)
                     TextField("المادة (مثال: لغتي، العلوم، English)", text: $subject, onCommit: saveInfo)
                     LabeledContent("الصفحات", value: "\(book.pages)")
                 }

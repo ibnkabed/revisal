@@ -20,7 +20,7 @@ struct RootView: View {
     var body: some View {
         TabView {
             CurriculaView()
-                .tabItem { Label("المناهج", systemImage: "books.vertical") }
+                .tabItem { Label("المنهج", systemImage: "books.vertical") }
             BankView(track: .tahsili)
                 .tabItem { Label("التحصيلي", systemImage: "graduationcap") }
             BankView(track: .qudurat)
