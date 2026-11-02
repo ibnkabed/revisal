@@ -11,6 +11,7 @@ struct RevisalApp: App {
                 .environmentObject(store)
                 .environmentObject(ai)
                 .environment(\.layoutDirection, .rightToLeft)
+                .task { BankStore.preload() }
         }
     }
 }

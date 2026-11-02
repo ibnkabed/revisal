@@ -399,7 +399,7 @@ struct ExplainBox: View {
                 let reply: String
                 if let image {
                     let prompt = messages.map { $0["content"] ?? "" }.joined(separator: "\n\n")
-                    reply = try await ai.gemini(image.data, mime: image.ext == "png" ? "image/png" : "image/jpeg", prompt: prompt,
+                    reply = try await ai.gemini(image.data, mime: ["png": "image/png", "webp": "image/webp"][image.ext] ?? "image/jpeg", prompt: prompt,
                                                 missing: "في هذا السؤال شكل يراه Gemini وحده: اربط Gemini من «الإعدادات» ليشرحه.")
                 } else {
                     reply = try await ai.chat(messages, jsonMode: false, temperature: 0.3).text

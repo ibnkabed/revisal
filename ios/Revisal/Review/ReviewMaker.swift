@@ -193,13 +193,27 @@ enum BankStore {
 
     static func bank(_ track: Track) -> BankFile? {
         if let hit = cache[track] { return hit }
-        var file: BankFile?
-        if let url = Bundle.main.url(forResource: track.rawValue, withExtension: "json", subdirectory: "bank"),
-           let data = try? Data(contentsOf: url), let loaded = try? Bank.load(data), !loaded.questions.isEmpty {
-            file = loaded
-        }
+        let file = read(track)
         cache[track] = file
         return file
+    }
+
+    /// Reads both banks off the main thread when the app opens (2026-11-02), so opening التحصيلي or القدرات
+    /// the first time does not wait for a large JSON file; a tab opened before it finishes reads it itself.
+    static func preload() {
+        for track in [Track.tahsili, .qudurat] where cache[track] == nil {
+            Task.detached(priority: .utility) {
+                let file = read(track)
+                await MainActor.run { if cache[track] == nil { cache[track] = file } }
+            }
+        }
+    }
+
+    nonisolated private static func read(_ track: Track) -> BankFile? {
+        guard let url = Bundle.main.url(forResource: track.rawValue, withExtension: "json", subdirectory: "bank"),
+              let data = try? Data(contentsOf: url), let loaded = try? Bank.load(data), !loaded.questions.isEmpty
+        else { return nil }
+        return loaded
     }
 
     static func imageURL(_ name: String) -> URL? {
