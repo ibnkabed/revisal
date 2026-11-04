@@ -14,7 +14,7 @@
 
 [![شاهد المقطع التوضيحي لتطبيق Revisal](docs/video/thumbnail.jpg)](https://youtu.be/OfxgbbrDcUA)
 
-**[شاهده على YouTube](https://youtu.be/OfxgbbrDcUA)** · [نزّل المقطع](docs/video/Revisal-demo-ar.mp4)
+**[شاهده على YouTube](https://youtu.be/OfxgbbrDcUA)**
 
 ## صور من التطبيق
 
