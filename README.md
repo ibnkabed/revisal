@@ -26,6 +26,14 @@
 | --- | --- | --- |
 | <img src="docs/screenshots/result.png" width="240"> | <img src="docs/screenshots/curricula.png" width="240"> | <img src="docs/screenshots/settings.png" width="240"> |
 
+## الوضع الداكن
+
+يتبع التطبيق مظهر الآيفون تلقائيًا، فإذا كان الجوال على الوضع الداكن ظهر به.
+
+| سؤال | بعد الإجابة | البنك | النتيجة |
+| --- | --- | --- | --- |
+| <img src="docs/screenshots/dark/question.png" width="180"> | <img src="docs/screenshots/dark/answered.png" width="180"> | <img src="docs/screenshots/dark/bank.png" width="180"> | <img src="docs/screenshots/dark/result.png" width="180"> |
+
 ## التثبيت
 
 نزّل أحدث `Revisal-unsigned.ipa` من صفحة [الإصدارات](https://github.com/ibnkabed/revisal/releases)، وثبّته بـ [Sideloadly](https://sideloadly.io/) وحساب Apple مجاني. والخطوات كاملة في [دليل الاستخدام](دليل-الاستخدام.md).
